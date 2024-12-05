@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Request
-from starlette.responses import Response
+from starlette.responses import Response,HTMLResponse
 import re
 from app.db.models import UserAnswer
-from app.api import api, eventProcessor, utilities
+from app.api import api, eventProcessor, utilities, aggregator
 
 
 app = FastAPI()
@@ -41,30 +41,97 @@ def read_result(user_id: int):
     return api.read_result(user_id)
 
 
-@app.get("/json/schema/{p:path}")
+@app.get("/eventprocessor/1-loadfile/{p:path}")
 def json_schema(p: str, req: Request):
     ## 1.1) Ler o JSON em um DataFrame PySpark.
-    return [{ "message":"Arquivo 'input-data.json': Carregado no DataFrame SPARK"
-             ,"object":eventProcessor.dfJsonSchema( lchar(p+req.url.query) ) }]
+    return [{ "message":"Arquivo 'input-data.json', arregado no DataFrame SPARK"
+             ,"object":eventProcessor.dfJsonLoad( utilities.lchar(p+req.url.query) ) }]
 
 
-@app.get("/json/searchitemlist/{p:path}")
+@app.get("/eventprocessor/2-searchitemlist/{p:path}")
 def json_searchitemlist(p: str, req: Request):
     ## 1.2) Explodir o array searchItemsList para normalizar os dados.
     return [{ "message":"Dados do atributo searchItemsList"
-             ,"object":eventProcessor.dfJsonSearchItemList( lchar(p+req.url.query) ) }]
+             ,"object":eventProcessor.dfJsonSearchItemList( utilities.lchar(p+req.url.query) ) }]
 
 
-@app.get("/json/featurecols/{p:path}")
+@app.get("/eventprocessor/3-featurecols/{p:path}")
 def json_featurecols(p: str, req: Request):
     ## 1.3) Criar colunas derivadas: 'departure_datetime', 'arrival_datetime' e 'route'
     return [{ "message":"""Feature aplicada: 'departure_datetime', 'arrival_datetime', 'route'.
               * Somente quando as colunas depentes existem no DataFrame 
              ** Exemplo 'arrival_datetime' não esta no Schema pois 'arrivalDate' e 'arrivalHour' não existem neste DataFrame."""
-             ,"object":eventProcessor.dfJsonFeatureCols( lchar(p+req.url.query) ) }]
+             ,"object":eventProcessor.dfJsonFeatureCols( utilities.lchar(p+req.url.query) ) }]
 
-# {"message": "File 'input-data.json': Loaded to DataFrame SPARK"}
 
-@app.get("/proxy/{p:path}")
-def read_item(p: str, req: Request):
-    return lchar(p+req.url.query)
+@app.get("/eventprocessor/4-futuredeparture/{p:path}")
+def json_featurecols(p: str, req: Request):
+    ## 1.4) Viagens futuras (baseadas no departure_datetime).
+    return [{ "message":"Filtro de viagens futuras, departure_datetime > NOW"
+             ,"object":eventProcessor.dfFilterDeparturesFutures( utilities.lchar(p+req.url.query) ) }]
+
+
+@app.get("/eventprocessor/5-availableseats/{p:path}")
+def json_featurecols(p: str, req: Request):
+    ## 1.4) Viagens com availableSeats > 0
+    return [{ "message":"Filtro de viagens com acentos disponíveis, availableSeats > 0"
+             ,"object":eventProcessor.dfFilterSeatsAvailables( utilities.lchar(p+req.url.query) ) }]
+
+
+@app.get("/agregator/6-avgrota/{p:path}", response_class=HTMLResponse)
+async def report_rota(p: str, req: Request):
+    ## 2.1) Calcular o preço médio por rota e classe de serviço.
+    return aggregator.dfGetPriceAvgRouteClasse( utilities.lchar(p+req.url.query) )
+
+
+@app.get("/agregator/7-availableseats/{p:path}", response_class=HTMLResponse)
+async def report_rota(p: str, req: Request):
+    ## 2.2) Determinar o total de assentos disponíveis por rota e companhia.
+    return aggregator.dfGetTotalAvalSeatsRouteClasse( utilities.lchar(p+req.url.query) )
+
+
+@app.get("/agregator/8-popularroute/{p:path}", response_class=HTMLResponse)
+async def report_rota(p: str, req: Request):
+    ## 2.3) Identificar a rota mais popular por companhia de viagem.
+    return aggregator.dfGetFrequenceRoute( utilities.lchar(p+req.url.query) )
+
+
+## 9 parquet
+
+
+@app.get("/eventprocessor/10-process_events/{p:path}")
+def json_process_events(p: str, req: Request):
+    ## EventProcessor: ■ Leia o JSON. ■ Normalize os dados. ■ Retorne o DataFrame processado
+    return [{ "message":"eventProcessor.process_events() -> EXECUTADO!"
+             ,"object":eventProcessor.process_events( utilities.lchar(p+req.url.query) ) }]
+
+
+@app.get("/aggregator/11-aggregate_data/{p:path}")
+def json_process_events(p: str, req: Request):
+    ## Aggregator.aggregate_data(): ■ Receba o DataFrame processado. ■ Gere as agregações solicitadas. ■ Retorne um DataFrame com os insights
+    return [{ "message":"aggregator.aggregate_data() -> EXECUTADO!"
+             ,"object":aggregator.aggregate_data( utilities.lchar(p+req.url.query) ) }]
+
+
+""""
+http://127.0.0.1:8000/eventprocessor/1-loadfile
+
+http://127.0.0.1:8000/eventprocessor/2-searchitemlist/
+
+http://127.0.0.1:8000/eventprocessor/3-featurecols/
+
+http://127.0.0.1:8000/eventprocessor/4-futuredeparture
+
+http://127.0.0.1:8000/eventprocessor/5-availableseats
+
+http://127.0.0.1:8000/aggregator/6-avgrota
+
+http://127.0.0.1:8000/aggregator/7-availableseats
+
+http://127.0.0.1:8000/aggregator/8-popularroute
+
+http://127.0.0.1:8000/eventprocessor/10-process_events
+
+http://127.0.0.1:8000/aggregator/11-aggregate_data
+
+"""

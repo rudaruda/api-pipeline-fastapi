@@ -1,29 +1,60 @@
+import sys
+
 import json
 from datetime import datetime
-from pyspark.sql import *
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import *
-import pyspark.sql.functions as F
-import pymongo
-
+from pyspark.sql.functions import avg, sum
+from . import utilitiesDataframe 
+from . import eventProcessor
 
 # create a SparkSession
 spark = SparkSession.builder.appName("ReadJSON").getOrCreate()
 
 
-def dfGetPriceAvgRouteClasse(p:str,x_dataframe:DataFrame=None):
+def dfGetPriceAvgRouteClasse(p:str=None,x_dataframe:DataFrame=None):
+    print('*  Running... dfGetPriceAvgRouteClasse()')
     ## 2.1) Calcular o preço médio por rota e classe de serviço. 
-    df = (x_dataframe
-        .groupBy("route","serviceClass")
-        .agg(F.avg("travelPrice	").alias("AVG Price"))
-        .orderBy("route","serviceClass")
-        .show())
-    return df   
+    df = type(x_dataframe) is DataFrame and x_dataframe or utilitiesDataframe.dfGetMongo()
+    x_col_group = ["route","serviceClass"]
+    if p is None or p == '': p = 'html'
+    if not "route" in df.columns: x_col_group.remove("route")
+    df = df.groupBy(x_col_group).agg(avg("price").alias("AVG Price")).orderBy(x_col_group)
+    print('*  Finish! dfGetPriceAvgRouteClasse()')
+    return utilitiesDataframe.dfOutput(p, df, "Média de preço")
 
 
-#def dfFilterSeatsAvailables(p:str,x_dataframe:DataFrame=None):
-#    ## 1.5) Viagens com availableSeats > 0
-#    # Em testes não foi preciso realizar a conversão do dado para integer: # df = df.withColumn("departure_datetime", F.col("departure_datetime").cast("integer"))
-#    df = type(x_dataframe) is DataFrame and x_dataframe or dfGetMongo()
-#    df = df.filter(F.col("availableSeats") > 0)
-#    return dfOutput(p,df)
+def dfGetTotalAvalSeatsRouteClasse(p:str=None,x_dataframe:DataFrame=None):
+    print('*  Running... dfGetTotalAvalSeatsRouteClasse()')
+    ## 2.2) Determinar o total de assentos disponíveis por rota e companhia.
+    df = type(x_dataframe) is DataFrame and x_dataframe or utilitiesDataframe.dfGetMongo()
+    x_col_group = ["route","travelCompanyName"]
+    if not "route" in df.columns: x_col_group.remove("route")
+    df = df.groupBy(x_col_group).agg(sum("availableSeats").alias("Total Available Seats")).orderBy(x_col_group)
+    print('*  Finish! dfGetTotalAvalSeatsRouteClasse()')
+    return utilitiesDataframe.dfOutput(p, df, "Total de assentos disponíveis")
+
+
+def dfGetFrequenceRoute(p:str=None,x_dataframe:DataFrame=None):
+    print('*  Running... dfGetFrequenceRoute()')
+    ## 2.3) Identificar a rota mais popular por companhia de viagem.
+    df = type(x_dataframe) is DataFrame and x_dataframe or utilitiesDataframe.dfGetMongo()
+    x_col_group = ["route","travelCompanyName"]
+    if not "route" in df.columns: x_col_group.remove("route")
+    df = df.groupBy(x_col_group).agg(sum("availableSeats").alias("Total Available Seats")).orderBy("availableSeats", ascending=False)
+    print('*  Finish! dfGetFrequenceRoute()')
+    return utilitiesDataframe.dfOutput(p, df, "Rota mais popular")
+
+
+def aggregate_data():
+    print('** Running... aggregate_data()')
+    ## Aggregator.aggregate_data(): ■ Receba o DataFrame processado. ■ Gere as agregações solicitadas. ■ Retorne um DataFrame com os insights
+    # ■ Receba o DataFrame processado
+    df = eventProcessor.process_events()
+    # ■ Gere as agregações solicitadas.
+    df1 = dfGetPriceAvgRouteClasse('html',df)
+    df2 = dfGetTotalAvalSeatsRouteClasse('html',df)
+    df3 = dfGetFrequenceRoute('html',df)
+    # ■ Retorne um DataFrame com os insights
+    # Construir retorno
+    print('** Finish! aggregate_data()')
+    return

@@ -1,4 +1,9 @@
-data/mongodb/*
+# MongoDB temp files
+/data/mongodb/*
+/data/mongodb_data/
+*.wt
+metrics.interim
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -13,7 +18,7 @@ __pycache__/
 build/
 develop-eggs/
 dist/
-MANIFEST
+MANIFES
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
