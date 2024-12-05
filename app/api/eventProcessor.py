@@ -1,5 +1,5 @@
-import json
 from datetime import datetime
+import json
 from pyspark.sql import DataFrame, SparkSession
 import pyspark.sql.functions as F
 from . import utilitiesDataframe
@@ -17,7 +17,7 @@ def dfJsonLoad(p:str, x_path:str='data/input_data.json'):
     df = spark.read.json(x_path, multiLine=True)
     utilitiesDataframe.dfToMongo(df,'dfJsonLoad',f'carregou arquivo de: {x_path}')
     print('*  Finish! dfJsonLoad()')
-    return utilitiesDataframe.dfOutput(p,df)
+    return utilitiesDataframe.dfOutput(p, df, "Carregou arquivo JSON: dfJsonLoad()", f"{x_path}")
 
 
 def dfJsonSearchItemList(p:str,x_dataframe:DataFrame=None):
@@ -30,7 +30,7 @@ def dfJsonSearchItemList(p:str,x_dataframe:DataFrame=None):
         df = spark.createDataFrame(data=df, schema = ["name","properties"])
         utilitiesDataframe.dfToMongo(df,'dfJsonSearchItemList',f'limpeza do dado, seleção do atributo "searchItemsList"')
     print('* Finish! dfJsonSearchItemList()')
-    return utilitiesDataframe.dfOutput(p,df)
+    return utilitiesDataframe.dfOutput(p, df, "Limpeza do dado: dfJsonSearchItemList()", "Conteúdo do atributo 'searchItemsList'")
 
 
 def dfJsonFeatureCols(p:str,x_dataframe:DataFrame=None):
@@ -42,7 +42,7 @@ def dfJsonFeatureCols(p:str,x_dataframe:DataFrame=None):
     df = utilitiesDataframe.dfContactTwoCols("arrival_datetime", "arrivalDate", "arrivalHour", df)
     df = utilitiesDataframe.dfContactTwoCols("route", "originCity", "destinationCity", df)
     print('*  Finish! dfJsonFeatureCols()')
-    return utilitiesDataframe.dfOutput(p,df)
+    return utilitiesDataframe.dfOutput(p, df, "Enriquecimento do dado: dfJsonFeatureCols()","'departure_datetime', 'arrival_datetime' e 'route'")
 
 
 def dfFilterDeparturesFutures(p:str,x_dataframe:DataFrame=None):
@@ -52,7 +52,7 @@ def dfFilterDeparturesFutures(p:str,x_dataframe:DataFrame=None):
     df = type(x_dataframe) is DataFrame and x_dataframe or utilitiesDataframe.dfGetMongo()
     df = df.filter(F.col("departure_datetime") > F.current_timestamp())
     print('*  Finish! dfFilterDeparturesFutures()')
-    return utilitiesDataframe.dfOutput(p,df)
+    return utilitiesDataframe.dfOutput(p, df, "Filtro do dado: dfFilterDeparturesFutures()", "WHERE 'departure_datetime' > NOW")
 
 
 def dfFilterSeatsAvailables(p:str,x_dataframe:DataFrame=None):
@@ -62,7 +62,7 @@ def dfFilterSeatsAvailables(p:str,x_dataframe:DataFrame=None):
     df = type(x_dataframe) is DataFrame and x_dataframe or utilitiesDataframe.dfGetMongo()
     df = df.filter(F.col("availableSeats") > 0)
     print('*  Finish! dfFilterSeatsAvailables()')
-    return utilitiesDataframe.dfOutput(p,df)
+    return utilitiesDataframe.dfOutput(p, df, "Filro do dado: dfFilterSeatsAvailables()", "WHERE 'availableSeats' > 0")
 
 
 def process_events():

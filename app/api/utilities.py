@@ -7,7 +7,7 @@ def toJson(x_json):
         res = json.loads(x_json) 
     except:
         res = json.loads(json.dumps(x_json))
-    return x_json
+    return res
 
 
 def lchar(x:str)->str:

@@ -1,11 +1,9 @@
-import sys
-
-import json
 from datetime import datetime
+from . import eventProcessor
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import avg, sum
 from . import utilitiesDataframe 
-from . import eventProcessor
+
 
 # create a SparkSession
 spark = SparkSession.builder.appName("ReadJSON").getOrCreate()
