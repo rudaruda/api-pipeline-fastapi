@@ -4,10 +4,10 @@ services:
 
   api:
     build:
-      context: ./project
+      context: .
       dockerfile: Dockerfile
     volumes:
-      - ./project:/code
+      - ./app:/code
     environment:
       LOG_LEVEL: 10
       # Apenas para uvicorn

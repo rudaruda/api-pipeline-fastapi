@@ -60,7 +60,7 @@ def dfContactTwoCols(new_col:str, x_col1:str, x_col2:str, x_dataframe:DataFrame)
     return x_dataframe
 
 
-def dfToString(df, n=20, truncate=True, vertical=False):
+def dfToString(df, n=20, truncate=False, vertical=False):
     if isinstance(truncate, bool) and truncate:
         return(df._jdf.showString(n, 20, vertical))
     else:
@@ -69,18 +69,20 @@ def dfToString(df, n=20, truncate=True, vertical=False):
 
 def htmlReport(x_title:str, x_dataframe:DataFrame, x_comment:str=None)->str:
     x_table = dfToString(x_dataframe)
-    x_html = """<html> <head> <style>
-        .dcenter {display: grid; justify-content: center; text-align: center;}
-        body { margin: 3em; margin-top: 1em;}
-        h3 {font-family: monospace;}
-        table, th, td { border: 1px solid;border-collapse:collapse; }
-        table { width: 100%; }
-        sub { color: solver; margin-top: 1em }
-        </style></head><body><div class=dcenter>"""
-    x_comment = x_comment is str and "<p>{x_comment}</p>" or ""
-    x_tit_pre = (not "()" in x_title and "Relatório: " or "")
-    x_html += f"<h3>{x_tit_pre}{x_title}</h3>{x_comment}<pre>{x_table}</pre>"
-    x_html += "<br><sub>Relatório produzido com PySpark</sup></div></body></html>"
+    if x_title != 'only_table':
+        x_html = """<html> <head> <style>
+            .dcenter {display: grid; justify-content: center; text-align: center;}
+            body { margin: 3em; margin-top: 1em;}
+            h3 {font-family: monospace;}
+            table, th, td { border: 1px solid;border-collapse:collapse; }
+            table { width: 100%; }
+            sub { color: solver; margin-top: 1em }
+            </style></head><body><div class=dcenter>"""
+        x_comment = x_comment is str and "<p>{x_comment}</p>" or ""
+        x_tit_pre = (not "()" in x_title and "Relatório: " or "")
+        x_html += f"<h3>{x_tit_pre}{x_title}</h3>{x_comment}<pre>{x_table}</pre>"
+        x_html += "<br><sub>Relatório produzido com PySpark</sup></div></body></html>"
+    else: x_html = x_table
     return x_html
 
 

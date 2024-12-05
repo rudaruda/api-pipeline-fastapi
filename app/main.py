@@ -1,8 +1,8 @@
-from app.api import api, eventProcessor, utilities, aggregator, writer
+from app.api import eventProcessor, utilities, aggregator, writer
 from app.db.models import UserAnswer
 from fastapi import FastAPI, HTTPException, Request
-from starlette.responses import Response, HTMLResponse, JSONResponse, StreamingResponse, FileResponse, RedirectResponse
-
+from starlette.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse, RedirectResponse
+import time
 
 app = FastAPI()
 
@@ -11,19 +11,6 @@ app = FastAPI()
 def root():
     return RedirectResponse(url="/docs")
     #return {"message": "Fast API in Python"}
-
-
-@app.get("/user")
-def read_user():
-    return api.read_user()
-
-
-@app.get("/question/{position}", status_code=200)
-def read_questions(position: int, response: Response):
-    question = api.read_questions(position)
-    if not question:
-        raise HTTPException(status_code=400, detail="Error")
-    return question
 
 
 @app.post("/answer", status_code=201)
@@ -109,4 +96,46 @@ async def writer_write_data():
     response = StreamingResponse(writer.write_data(), media_type="application/x-zip-compressed")
     response.headers["Content-Disposition"] = "attachment; filename=dataframe_parquet.zip"
     return response
+
+@app.get("/writer/write_data/download", response_class=FileResponse) #, response_description='zip'
+async def writer_write_data():
+    ## 2.3) Writer.write_data(): ■ Salve os dados processados em Parquet.
+    response = StreamingResponse(writer.write_data(), media_type="application/x-zip-compressed")
+    response.headers["Content-Disposition"] = "attachment; filename=dataframe_parquet.zip"
+    return response
+
+@app.get("/writer/write_data")
+async def prepare_download():
+    ## 2.3) Writer.write_data(): Salve os dados processados em Parquet.
+    html_content = """
+    <html>
+        <head>
+            <title>Download do Parquet</title>
+        </head>
+        <body>
+            <h1>Preparando o arquivo para download...</h1>
+            <p>O download começará em instantes.</p>
+            <p>O arquivo esta zipado, basta descompactar pra visualizar o conteudo de arquivos parquet.<br>Reforço que esta é apenas uma solução paliativa para completar o objetivo<br>Que nós provoca, sobre o que mais podemos fazer. Num ambiente produtivo teriamos outras alternativas,<br>compartilhando recursos de rede e automatizando mais processo.</p>
+            <script>
+                setTimeout(function() {
+                    window.location.href = '/writer/write_data/download';
+                }, 2000);
+            </script>
+        </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+@app.get("/pipeline", response_class=HTMLResponse)
+async def run_pipeline():
+    ## 3) Parte 3: Testar o Pipeline
+    # Instancie as classes EventProcessor, Aggregator e Writer.
+    return StreamingResponse(eventProcessor.runPipeline(), media_type="text/html")
+
+
+@app.get("/insights", response_class=HTMLResponse)
+async def run_insights():
+    ## 2.2) Retorne um DataFrame com os insights.
+    # ■ Receba o DataFrame processado. ■ Gere as agregações solicitadas. ■ Retorne um DataFrame com os insights.
+    return StreamingResponse(aggregator.runInsights(), media_type="text/html")
 
