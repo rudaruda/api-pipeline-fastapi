@@ -1,8 +1,7 @@
 from app.api import api, eventProcessor, utilities, aggregator, writer
 from app.db.models import UserAnswer
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import ORJSONResponse
-from starlette.responses import Response, HTMLResponse, JSONResponse, StreamingResponse, FileResponse
+from starlette.responses import Response, HTMLResponse, JSONResponse, StreamingResponse, FileResponse, RedirectResponse
 
 
 app = FastAPI()
@@ -10,7 +9,8 @@ app = FastAPI()
 
 @app.get("/")
 def root():
-    return {"message": "Fast API in Python"}
+    return RedirectResponse(url="/docs")
+    #return {"message": "Fast API in Python"}
 
 
 @app.get("/user")
@@ -25,9 +25,6 @@ def read_questions(position: int, response: Response):
         raise HTTPException(status_code=400, detail="Error")
     return question
 
-@app.get("/alternatives/{question_id}")
-def read_alternatives(question_id: int):
-    return api.read_alternatives(question_id)
 
 @app.post("/answer", status_code=201)
 def create_answer(payload: UserAnswer):
@@ -35,26 +32,11 @@ def create_answer(payload: UserAnswer):
     return api.create_answer(payload)
 
 
-@app.get("/result/{user_id}")
-def read_result(user_id: int):
-
-    return api.read_result(user_id)
-
-
-def jsonOrHtmlResponse(x_res, x_msg):
-    # Define se o retorno será JSON ou HTML
-    x_res = utilities.toJson(x_res)
-    if not type(x_res) is str: 
-        if not 'html' in str(x_res)[:7]:
-            return JSONResponse(content=[{ "message": x_msg, "object": x_res }]) 
-    return HTMLResponse(content=x_res)
-
-
 @app.get("/eventprocessor/1-loadfile/{p:path}")
 async def json_schema(p: str, req: Request):
     ## 1.1.1) Ler o JSON em um DataFrame PySpark.
     res = eventProcessor.dfJsonLoad( utilities.lchar(p+req.url.query) )
-    return jsonOrHtmlResponse(res, "Arquivo 'input-data.json', carregado DataFrame SPARK")
+    return utilities.jsonOrHtmlResponse(res, "Arquivo 'input-data.json', carregado DataFrame SPARK")
 
 
 @app.get("/eventprocessor/2-searchitemlist/{p:path}")
@@ -62,14 +44,14 @@ def json_searchitemlist(p: str, req: Request):
     ## 1.1.2) Explodir o array searchItemsList para normalizar os dados.
     res = eventProcessor.dfJsonSearchItemList( utilities.lchar(p+req.url.query) )
     # "Dados do atributo searchItemsList"
-    return jsonOrHtmlResponse(res, "Limpeza do dado: dfJsonSearchItemList()")
+    return utilities.jsonOrHtmlResponse(res, "Limpeza do dado: dfJsonSearchItemList()")
 
 
 @app.get("/eventprocessor/3-featurecols/{p:path}")
 def json_featurecols(p: str, req: Request):
     ## 1.1.3) Criar colunas derivadas: 'departure_datetime', 'arrival_datetime' e 'route'
     res = eventProcessor.dfJsonFeatureCols( utilities.lchar(p+req.url.query))
-    return jsonOrHtmlResponse(res, """Feature aplicada: 'departure_datetime', 'arrival_datetime', 'route'.
+    return utilities.jsonOrHtmlResponse(res, """Feature aplicada: 'departure_datetime', 'arrival_datetime', 'route'.
         * Somente quando as colunas depentes existem no DataFrame 
         ** Exemplo 'arrival_datetime' não esta no Schema pois 'arrivalDate' e 'arrivalHour' não existem neste DataFrame.""")
 
@@ -78,21 +60,21 @@ def json_featurecols(p: str, req: Request):
 def json_futuredeparture(p: str, req: Request):
     ## 1.1.4) Viagens futuras (baseadas no departure_datetime).
     res = eventProcessor.dfFilterDeparturesFutures( utilities.lchar(p+req.url.query) )
-    return jsonOrHtmlResponse(res, "Filtro de viagens futuras, departure_datetime > NOW")
+    return utilities.jsonOrHtmlResponse(res, "Filtro de viagens futuras, departure_datetime > NOW")
 
 
 @app.get("/eventprocessor/5-availableseats/{p:path}")
 def json_availableseats(p: str, req: Request):
     ## 1.1.4) Viagens com availableSeats > 0
     res = eventProcessor.dfFilterSeatsAvailables( utilities.lchar(p+req.url.query) )
-    return jsonOrHtmlResponse(res, "Filtro de viagens com acentos disponíveis, availableSeats > 0")
+    return utilities.jsonOrHtmlResponse(res, "Filtro de viagens com acentos disponíveis, availableSeats > 0")
 
 
 @app.get("/agregator/6-avgrota/{p:path}", response_class=HTMLResponse)
 async def report_avgrota(p: str, req: Request):
     ## 1.2.1) Calcular o preço médio por rota e classe de serviço.
     res = aggregator.dfGetPriceAvgRouteClasse( utilities.lchar(p+req.url.query) )
-    return jsonOrHtmlResponse(res) 
+    return utilities.jsonOrHtmlResponse(res) 
 
 
 @app.get("/agregator/7-availableseats/{p:path}", response_class=HTMLResponse)
@@ -126,27 +108,5 @@ async def writer_write_data():
     ## 2.3) Writer.write_data(): ■ Salve os dados processados em Parquet.
     response = StreamingResponse(writer.write_data(), media_type="application/x-zip-compressed")
     response.headers["Content-Disposition"] = "attachment; filename=dataframe_parquet.zip"
+    return response
 
-
-""""
-http://127.0.0.1:8000/eventprocessor/1-loadfile
-
-http://127.0.0.1:8000/eventprocessor/2-searchitemlist/
-
-http://127.0.0.1:8000/eventprocessor/3-featurecols/
-
-http://127.0.0.1:8000/eventprocessor/4-futuredeparture
-
-http://127.0.0.1:8000/eventprocessor/5-availableseats
-
-http://127.0.0.1:8000/aggregator/6-avgrota
-
-http://127.0.0.1:8000/aggregator/7-availableseats
-
-http://127.0.0.1:8000/aggregator/8-popularroute
-
-http://127.0.0.1:8000/eventprocessor/10-process_events
-
-http://127.0.0.1:8000/aggregator/11-aggregate_data
-
-"""
